@@ -6,8 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
+# Data cleansing
+temp_scripts
+
 # Distribution / packaging
 .Python
+.idea/
 build/
 develop-eggs/
 dist/
@@ -38,6 +42,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # Unit test / coverage reports
+_test*.py
 htmlcov/
 .tox/
 .nox/
