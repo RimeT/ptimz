@@ -12,7 +12,7 @@
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   PACKAGE_VERSION: "0.0.1"
-  PTIMZ_BINARY: "ptimz-${PACKAGE_VERSION}-py2.py3-none-any.whl"
+  PTIMZ_BINARY: "ptimz-${PACKAGE_VERSION}-py3-none-any.whl"
   PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ptimzrelease/${PACKAGE_VERSION}"
 
 # Pip's cache doesn't store the python packages
@@ -43,7 +43,8 @@ build:
     # run the command here
   artifacts:
     paths:
-      - dist/*.whl
+#      - dist/*.whl
+      - dist/
 
 upload:
   stage: upload
