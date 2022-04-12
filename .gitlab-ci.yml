@@ -5,12 +5,15 @@
 
 # Official language image. Look for the different tagged releases at:
 # https://hub.docker.com/r/library/python/tags/
-image: python:3.9.12-buster
+#image: python:3.9.12-buster
 
 # Change pip's cache directory to be inside the project directory since we can
 # only cache local items.
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PACKAGE_VERSION: "0.0.1"
+  PTIMZ_BINARY: "ptimz-${PACKAGE_VERSION}-py2.py3-none-any.whl"
+  PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/ptimzrelease/${PACKAGE_VERSION}"
 
 # Pip's cache doesn't store the python packages
 # https://pip.pypa.io/en/stable/reference/pip_install/#caching
@@ -29,7 +32,9 @@ before_script:
   - source venv/bin/activate
   - pip install -U build
 
-run:
+build:
+  image: python:3.9.12-buster
+  stage: build
   script:
     - python -m build
     # an alternative approach is to install and run:
@@ -38,3 +43,27 @@ run:
   artifacts:
     paths:
       - dist/*.whl
+
+upload:
+  stage: upload
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/${PTIMZ_BINARY} "${PACKAGE_REGISTRY_URL}/${PTIMZ_BINARY}"
+
+release:
+  # Caution, as of 2021-02-02 these assets links require a login, see:
+  # https://gitlab.com/gitlab-org/gitlab/-/issues/299384
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - |
+      release-cli create --name "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG \
+        --assets-link "{\"name\":\"${PTIMZ_BINARY}\",\"url\":\"${PACKAGE_REGISTRY_URL}/${PTIMZ_BINARY}\"}"
+
+stages:
+  - build
+  - upload
+  - release
