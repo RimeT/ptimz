@@ -38,3 +38,6 @@ run:
   artifacts:
     paths:
       - dist/*.whl
+
+stages:
+  - build
