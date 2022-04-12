@@ -40,4 +40,4 @@ run:
       - dist/*.whl
 
 stages:
-  - build
+  - run
