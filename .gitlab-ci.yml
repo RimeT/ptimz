@@ -30,25 +30,31 @@ cache:
 build:
   stage: build
   image: python:3.9.12-buster
+  rules:
+    - if: $CI_COMMIT_TAG
   before_script:
     - python --version  # For debugging
     - pip install virtualenv
     - virtualenv venv
     - source venv/bin/activate
     - pip install -U build
+    - pip install -U twine
   script:
+    # build ptimz wheel
     - python -m build
     # an alternative approach is to install and run:
     - pip install dist/*.whl
-    # run the command here
+    # publish a PyPI package
+  #    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   artifacts:
     paths:
-#      - dist/*.whl
-      - dist/
+      - dist/*.whl
 
 upload:
   stage: upload
   image: curlimages/curl:latest
+  rules:
+    - if: $CI_COMMIT_TAG
   script:
     - |
       curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file dist/${PTIMZ_BINARY} "${PACKAGE_REGISTRY_URL}/${PTIMZ_BINARY}"

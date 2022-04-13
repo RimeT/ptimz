@@ -136,8 +136,12 @@ setup(
 
     # Note that this is a string of words separated by whitespace, not a list.
     keywords='pytorch pretrained models unet',
-    packages=find_packages(exclude=['convert', 'tests', 'scripts']),
+    license='Apache License 2.0',
+    packages=find_packages(exclude=['convert', 'tests']),
     include_package_data=True,
-    install_requires=parse_requirements('requirements.txt'),
+    # install_requires=parse_requirements('requirements.txt'),
+    install_requires=['numpy>=1.19.0', 'torch>=1.9.0', 'torchvision>=0.10.0', 'openmim>=0.1.5', 'timm', 'SimpleITK',
+                      'Pillow', 'mmcv>=1.3.9', 'mmpose>=0.24.0', 'monai', 'torchio', 'matplotlib', 'jupyterlab',
+                      'jupyter_contrib_nbextensions', 'nbconvert'],
     python_requires='>=3.6',
 )
