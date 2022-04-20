@@ -1,3 +1,4 @@
+import logging
 from numbers import Integral
 
 import mmcv
@@ -12,6 +13,29 @@ from mmpose.models.backbones.resnet import BasicBlock, Bottleneck, ResLayer, get
 from mmpose.models.backbones.utils import load_checkpoint, channel_shuffle
 from mmpose.utils import get_root_logger
 from torch.nn.modules.batchnorm import _BatchNorm
+
+from .helpers import build_model_with_cfg
+from .registry import register_model
+
+__all__ = ['LiteHRNet', 'LiteHRModule']
+
+
+def _cfg(url='', **kwargs):
+    return {
+        'url': url,
+        # 'interpolation': 'trilinear',
+        'num_classes': 1000,
+        'first_conv': 'stem.conv1.conv',
+        **kwargs
+    }
+
+
+default_cfgs = {
+    "litehrnet_seg3d\tfetal_whitematter": _cfg(
+        url='https://github.com/RimeT/ptimz/releases/download/v0.0.1-np/hrnetlite_feta21_wm3d.pth.tar',
+        input_details='MR [T2-weighted]',
+        num_classes=2, input_size=(1, 224, 224, 224), last_layer='head_layer.final_layer.1'),
+}
 
 
 def channel_shuffle3d(x, groups):
@@ -431,7 +455,7 @@ class SegHead(nn.Module):
         # final convolution
         x = self.final_layer(x)
 
-        return x
+        return [x]
 
 
 class IterativeHead(nn.Module):
@@ -1134,7 +1158,7 @@ class LiteHRNet(nn.Module):
                     interp_mode = 'linear'
                 for idx, y in enumerate(x):
                     x[idx] = F.interpolate(y, tuple(origin_shape[2:]), mode=interp_mode)
-                return x
+                return x[0]
             elif 'posehead' == self.head_type:
                 return [x[0]]
             elif 'clshead' == self.head_type:
@@ -1151,7 +1175,7 @@ class LiteHRNet(nn.Module):
                     m.eval()
 
 
-def _build_hrnet(head_type, dimension="3d", in_chans=1, num_classes=1000, **kwargs):
+def _build_hrnet(pretrained_name, head_type, dimension="3d", in_chans=1, num_classes=1000, **kwargs):
     dimension = dimension.lower()
     assert dimension in ('2d', '3d'), "dimension must be 2d or 3d"
     head_dict = dict(nclasses=num_classes)
@@ -1180,21 +1204,43 @@ def _build_hrnet(head_type, dimension="3d", in_chans=1, num_classes=1000, **kwar
     )
     conv_cfg = dict(type=f'Conv{dimension}')
     norm_cfg = dict(type=f'BN{dimension}')
-    model = LiteHRNet(extra, in_channels=in_chans, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
-    return model
+
+    # direct invoke
+    # model = LiteHRNet(extra, in_channels=in_chans, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
+    # return model
+
+    # use cfg to build
+    pretrained = False if pretrained_name is False or pretrained_name is None else True
+    return build_model_with_cfg(model_cls=LiteHRNet, variant='litehrnet', pretrained=pretrained,
+                                default_cfg=default_cfgs.get(pretrained_name, None),
+                                # model config
+                                extra=extra, in_channels=in_chans, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
 
 
-def litehrnet_seg3d(pretrained=False, **kwargs):
-    return _build_hrnet('seghead', '3d', **kwargs)
+@register_model
+def litehrnet_seg3d(pretrained=None, **kwargs):
+    if pretrained is True:
+        pretrained = 'litehrnet_seg3d\tfetal_whitematter'
+    elif isinstance(pretrained, str):
+        pretrained = 'litehrnet_seg3d' + '\t' + pretrained
+        if pretrained not in default_cfgs.keys():
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f"There is no {pretrained} pretrained weights, use random initialization.")
+            pretrained = False
+
+    return _build_hrnet(pretrained, 'seghead', '3d', **kwargs)
 
 
-def litehrnet_cls3d(pretrained=False, **kwargs):
-    return _build_hrnet('clshead', '3d', **kwargs)
+@register_model
+def litehrnet_cls3d(pretrained=None, **kwargs):
+    return _build_hrnet(pretrained, 'clshead', '3d', **kwargs)
 
 
-def litehrnet_seg2d(pretrained=False, **kwargs):
-    return _build_hrnet('seghead', '2d', **kwargs)
+@register_model
+def litehrnet_seg2d(pretrained=None, **kwargs):
+    return _build_hrnet(pretrained, 'seghead', '2d', **kwargs)
 
 
-def litehrnet_cls2d(pretrained=False, **kwargs):
-    return _build_hrnet('clshead', '2d', **kwargs)
+@register_model
+def litehrnet_cls2d(pretrained=None, **kwargs):
+    return _build_hrnet(pretrained, 'clshead', '2d', **kwargs)

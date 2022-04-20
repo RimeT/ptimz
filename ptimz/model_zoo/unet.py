@@ -1,4 +1,5 @@
 import copy
+import logging
 
 import torch
 import torch.nn as nn
@@ -9,6 +10,30 @@ from mmpose.models.backbones.utils import load_checkpoint
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from ptimz.model_zoo.resnet import BasicBlock, Bottleneck, ResNet
+from .helpers import build_model_with_cfg
+from .registry import register_model
+
+__all__ = ['UNet']
+
+
+def _cfg(url='', **kwargs):
+    return {
+        'url': url,
+        # 'interpolation': 'trilinear',
+        'num_classes': 1000,
+        **kwargs
+    }
+
+
+default_cfgs = {
+    "resunet50_2d\tmultiplesclerosis": _cfg(
+        url='https://github.com/RimeT/ptimz/releases/download/v0.0.1-np/resunet50_2d_multiplesclerosis_FLAIR.pth.tar',
+        input_details='MR [FLAIR]',
+        spacing=(0.5, 0.5),
+        slice_thickness=5,
+        first_conv='encoder_0.0.conv',
+        num_classes=2, input_size=(1, 512, 512), last_layer='head_layer.final_layer.1'),
+}
 
 
 def dropout_layer(conv_cfg, dropout_rate=0):
@@ -96,7 +121,8 @@ class UNet(nn.Module):
                  decoder_block=Bottleneck,
                  dropout_rate=0,
                  zero_init_residual=True,
-                 aux_train=False) -> None:
+                 aux_train=False,
+                 **kwargs) -> None:
 
         # Protect mutable default arguments
         norm_cfg = copy.deepcopy(norm_cfg)
@@ -172,7 +198,7 @@ class UNet(nn.Module):
             # in final out, decoder 3 out, decoder 2 out ... order
             return [last_output] + aux_outputs[::-1]
         else:
-            return [last_output]
+            return last_output
 
     def init_weights(self, pretrained=None):
         """Initialize the weights in backbone.
@@ -200,7 +226,7 @@ class UNet(nn.Module):
             raise TypeError('pretrained must be a str or None')
 
 
-def _build_resunet(depth, dimension="3d", in_chans=1, num_classes=1000, **kwargs):
+def _build_resunet(pretrained_name, depth, dimension="3d", in_chans=1, num_classes=1000, **kwargs):
     dimension = dimension.lower()
     assert dimension in ('1d', '2d', '3d'), "dimension must be 1d 2d or 3d"
     resnet_channels = {"10": (64, 64, 128, 256, 512),
@@ -222,29 +248,51 @@ def _build_resunet(depth, dimension="3d", in_chans=1, num_classes=1000, **kwargs
     unet_layers = [backbone_resnet.stem, nn.Sequential(backbone_resnet.maxpool,
                                                        getattr(backbone_resnet, backbone_resnet.res_layers[0]))] + [
                       getattr(backbone_resnet, x) for x in backbone_resnet.res_layers[1:]]
-    model = UNet(extra, unet_layers, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
-    return model
+
+    # direct invoke
+    # model = UNet(extra, unet_layers, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
+    # return model
+
+    # use cfg to build
+    pretrained = False if pretrained_name is False or pretrained_name is None else True
+    return build_model_with_cfg(model_cls=UNet, variant='unet', pretrained=pretrained,
+                                default_cfg=default_cfgs.get(pretrained_name, None),
+                                # model config
+                                in_chans=in_chans, extra=extra, layers=unet_layers, conv_cfg=conv_cfg,
+                                norm_cfg=norm_cfg, **kwargs)
 
 
+@register_model
 def resunet50_3d(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     """
     depth = 50
-    model = _build_resunet(depth, dimension='3d', **kwargs)
+    model = _build_resunet(pretrained, depth, dimension='3d', **kwargs)
     return model
 
 
+@register_model
 def resunet50_2d(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     """
+    if pretrained is True:
+        pretrained = 'resunet50_2d\tmultiplesclerosis'
+    elif isinstance(pretrained, str):
+        pretrained = 'resunet50_2d' + '\t' + pretrained
+        if pretrained not in default_cfgs.keys():
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f"There is no {pretrained} pretrained weights, use random initialization.")
+            pretrained = False
+
     depth = 50
-    model = _build_resunet(depth, dimension='2d', **kwargs)
+    model = _build_resunet(pretrained, depth, dimension='2d', **kwargs)
     return model
 
 
+@register_model
 def resunet50_1d(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     """
     depth = 50
-    model = _build_resunet(depth, dimension='1d', **kwargs)
+    model = _build_resunet(pretrained, depth, dimension='1d', **kwargs)
     return model
