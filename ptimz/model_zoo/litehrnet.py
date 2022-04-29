@@ -34,6 +34,8 @@ default_cfgs = {
     "litehrnet_seg3d\tfetal_whitematter": _cfg(
         url='https://github.com/RimeT/ptimz/releases/download/v0.0.1-np/hrnetlite_feta21_wm3d.pth.tar',
         input_details='MR [T2-weighted]',
+        spacing=(0.5469, 0.5469, 0.5469),
+        slice_thichness=0.5469,
         num_classes=2, input_size=(1, 224, 224, 224), last_layer='head_layer.final_layer.1'),
 }
 
