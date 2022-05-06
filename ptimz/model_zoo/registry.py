@@ -8,7 +8,8 @@ import sys
 from collections import defaultdict
 from copy import deepcopy
 
-__all__ = ['list_models', 'is_model', 'model_entrypoint', 'list_modules', 'is_model_in_modules', 'list_pretrained_names',
+__all__ = ['list_models', 'is_model', 'model_entrypoint', 'list_modules', 'is_model_in_modules',
+           'list_pretrained_names',
            'is_pretrained_cfg_key', 'has_pretrained_cfg_key', 'get_pretrained_cfg_value', 'is_model_pretrained']
 
 _module_to_models = defaultdict(set)  # dict of sets to check membership of model in module
@@ -174,7 +175,16 @@ def get_pretrained_cfg_value(model_name, pretrained_name, cfg_key):
         return _model_pretrained_cfgs[model_name].get(cfg_key, None)
     return None
 
-def list_pretrained_names(model_name):
+
+def list_pretrained_names(model_name=None):
     """ List pretrained names of a model.
     """
+    if model_name is None:
+        names = []
+        for x in list_models():
+           prs = list_pretrained(_model_pretrained_cfgs)[x]
+           if len(prs) > 0:
+               for pr in prs:
+                   names.append(pr+'|'+x)
+        return sorted(names)
     return list_pretrained(_model_pretrained_cfgs)[model_name]

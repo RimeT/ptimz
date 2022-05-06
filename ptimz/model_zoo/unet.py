@@ -27,12 +27,12 @@ def _cfg(url='', **kwargs):
 
 default_cfgs = {
     "resunet50_2d\tmultiplesclerosis": _cfg(
-        url='https://github.com/RimeT/ptimz/releases/download/v0.0.1-np/resunet50_2d_multiplesclerosis_FLAIR.pth.tar',
+        url='https://github.com/songphilips/ptimz/releases/download/v0.0.1-hrnet/resunet50_2d_multiplesclerosis_FLAIR.pth.tar',
         input_details='MR [FLAIR]',
         spacing=(0.5, 0.5),
         slice_thickness=5,
         first_conv='encoder_0.0.conv',
-        num_classes=2, input_size=(1, 512, 512), last_layer='head_layer.final_layer.1'),
+        num_classes=2, input_size=(1, 512, 512), last_layer='final_layer.1'),
 }
 
 
@@ -258,6 +258,7 @@ def _build_resunet(pretrained_name, depth, dimension="3d", in_chans=1, num_class
     return build_model_with_cfg(model_cls=UNet, variant='unet', pretrained=pretrained,
                                 default_cfg=default_cfgs.get(pretrained_name, None),
                                 # model config
+                                num_classes=num_classes,
                                 in_chans=in_chans, extra=extra, layers=unet_layers, conv_cfg=conv_cfg,
                                 norm_cfg=norm_cfg, **kwargs)
 

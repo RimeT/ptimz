@@ -9,13 +9,11 @@ import torch.utils.checkpoint as cp
 from mmcv.cnn import (ConvModule, DepthwiseSeparableConvModule,
                       build_conv_layer, build_norm_layer, constant_init,
                       normal_init)
-from mmpose.models.backbones.resnet import BasicBlock, Bottleneck, ResLayer, get_expansion
-from mmpose.models.backbones.utils import load_checkpoint, channel_shuffle
-from mmpose.utils import get_root_logger
 from torch.nn.modules.batchnorm import _BatchNorm
 
 from .helpers import build_model_with_cfg
 from .registry import register_model
+from .resnet import BasicBlock, Bottleneck, ResLayer, get_expansion
 
 __all__ = ['LiteHRNet', 'LiteHRModule']
 
@@ -32,12 +30,39 @@ def _cfg(url='', **kwargs):
 
 default_cfgs = {
     "litehrnet_seg3d\tfetal_whitematter": _cfg(
-        url='https://github.com/RimeT/ptimz/releases/download/v0.0.1-np/hrnetlite_feta21_wm3d.pth.tar',
+        url='https://github.com/songphilips/ptimz/releases/download/v0.0.1-hrnet/hrnetlite_feta21_wm3d.pth.tar',
         input_details='MR [T2-weighted]',
         spacing=(0.5469, 0.5469, 0.5469),
         slice_thichness=0.5469,
         num_classes=2, input_size=(1, 224, 224, 224), last_layer='head_layer.final_layer.1'),
 }
+
+
+def channel_shuffle2d(x, groups):
+    """Channel Shuffle operation.
+
+    This function enables cross-group information flow for multiple groups
+    convolution layers.
+
+    Args:
+        x (Tensor): The input tensor.
+        groups (int): The number of groups to divide the input tensor
+            in the channel dimension.
+
+    Returns:
+        Tensor: The output tensor after channel shuffle operation.
+    """
+
+    batch_size, num_channels, height, width = x.size()
+    assert (num_channels % groups == 0), ('num_channels should be '
+                                          'divisible by groups')
+    channels_per_group = num_channels // groups
+
+    x = x.view(batch_size, groups, channels_per_group, height, width)
+    x = torch.transpose(x, 1, 2).contiguous()
+    x = x.view(batch_size, groups * channels_per_group, height, width)
+
+    return x
 
 
 def channel_shuffle3d(x, groups):
@@ -225,8 +250,8 @@ class ConditionalChannelWeighting(nn.Module):
 
             if '3d' in self.depthwise_convs[0].conv_cfg['type']:
                 out = [channel_shuffle3d(s, 2) for s in out]
-            else:
-                out = [channel_shuffle(s, 2) for s in out]
+            elif '2d' in self.depthwise_convs[0].conv_cfg['type']:
+                out = [channel_shuffle2d(s, 2) for s in out]
 
             return out
 
@@ -341,8 +366,8 @@ class Stem(nn.Module):
             out = torch.cat((self.branch1(x1), x2), dim=1)
             if '3d' in self.conv1.conv_cfg['type']:
                 out = channel_shuffle3d(out, 2)
-            else:
-                out = channel_shuffle(out, 2)
+            elif '2d' in self.conv1.conv_cfg['type']:
+                out = channel_shuffle2d(out, 2)
 
             return out
 
@@ -627,7 +652,7 @@ class ShuffleUnit(nn.Module):
                 x1, x2 = x.chunk(2, dim=1)
                 out = torch.cat((x1, self.branch2(x2)), dim=1)
 
-            out = channel_shuffle(out, 2)
+            out = channel_shuffle2d(out, 2)
 
             return out
 
@@ -943,7 +968,8 @@ class LiteHRNet(nn.Module):
                  norm_cfg=dict(type='BN'),
                  norm_eval=False,
                  with_cp=False,
-                 zero_init_residual=False):
+                 zero_init_residual=False,
+                 **kwargs):
         super().__init__()
         self.extra = extra
         self.conv_cfg = conv_cfg
@@ -1110,24 +1136,18 @@ class LiteHRNet(nn.Module):
             pretrained (str, optional): Path to pre-trained weights.
                 Defaults to None.
         """
-        if isinstance(pretrained, str):
-            logger = get_root_logger()
-            load_checkpoint(self, pretrained, strict=False, logger=logger)
-        elif pretrained is None:
-            for m in self.modules():
-                if isinstance(m, (nn.Conv2d, nn.Conv3d)):
-                    normal_init(m, std=0.001)
-                elif isinstance(m, (_BatchNorm, nn.GroupNorm)):
-                    constant_init(m, 1)
+        for m in self.modules():
+            if isinstance(m, (nn.Conv2d, nn.Conv3d)):
+                normal_init(m, std=0.001)
+            elif isinstance(m, (_BatchNorm, nn.GroupNorm)):
+                constant_init(m, 1)
 
-            if self.zero_init_residual:
-                for m in self.modules():
-                    if isinstance(m, Bottleneck):
-                        constant_init(m.norm3, 0)
-                    elif isinstance(m, BasicBlock):
-                        constant_init(m.norm2, 0)
-        else:
-            raise TypeError('pretrained must be a str or None')
+        if self.zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck):
+                    constant_init(m.norm3, 0)
+                elif isinstance(m, BasicBlock):
+                    constant_init(m.norm2, 0)
 
     def forward(self, x):
         """Forward function."""
@@ -1214,7 +1234,7 @@ def _build_hrnet(pretrained_name, head_type, dimension="3d", in_chans=1, num_cla
     # use cfg to build
     pretrained = False if pretrained_name is False or pretrained_name is None else True
     return build_model_with_cfg(model_cls=LiteHRNet, variant='litehrnet', pretrained=pretrained,
-                                default_cfg=default_cfgs.get(pretrained_name, None),
+                                default_cfg=default_cfgs.get(pretrained_name, None), num_classes=num_classes,
                                 # model config
                                 extra=extra, in_channels=in_chans, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
 

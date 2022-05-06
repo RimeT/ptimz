@@ -119,9 +119,6 @@ def build_model_with_cfg(
     # if pruned:
     #     model = adapt_model_from_file(model, variant)
 
-    # For classification models, check class attr, then kwargs, then default to 1k, otherwise 0 for feats
-    num_classes_pretrained = getattr(model, 'num_classes', kwargs.get('num_classes', 2))
-
     if 'in_channels' in kwargs:
         in_chans = kwargs['in_channels']
     elif 'in_channel' in kwargs:
@@ -132,6 +129,8 @@ def build_model_with_cfg(
         raise NotImplementedError(f"in_chans not found in model parameters.")
 
     if pretrained:
+        # For classification models, check class attr, then kwargs, then default to 1k, otherwise 0 for feats
+        num_classes_pretrained = getattr(model, 'num_classes', kwargs.get('num_classes', 0))
         load_pretrained(
             model,
             num_classes=num_classes_pretrained,

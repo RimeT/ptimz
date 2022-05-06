@@ -1,5 +1,6 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import copy
+import logging
 
 import torch
 import torch.nn as nn
@@ -8,6 +9,25 @@ from mmcv.cnn import (ConvModule, build_conv_layer, build_norm_layer,
                       constant_init, kaiming_init)
 from mmcv.utils.parrots_wrapper import _BatchNorm
 from mmpose.models.backbones.base_backbone import BaseBackbone
+
+from .helpers import build_model_with_cfg
+from .registry import register_model
+
+__all__ = ['ResNet', 'ResNetV1d', 'ResLayer', 'BasicBlock', 'Bottleneck', 'get_expansion']
+
+
+def _cfg(url='', **kwargs):
+    return {
+        'url': url,
+        # 'interpolation': 'trilinear',
+        'num_classes': 1000,
+        **kwargs
+    }
+
+
+default_cfgs = {
+    # no pretrained now
+}
 
 
 class BasicBlock(nn.Module):
@@ -765,3 +785,400 @@ class ResNetV1d(ResNet):
 
     def __init__(self, **kwargs):
         super().__init__(deep_stem=True, avg_down=True, **kwargs)
+
+
+def _build_resnet(pretrained_name, depth, dimension="3d", in_chans=1, num_classes=1000, deep_stem=False, **kwargs):
+    conv_cfg = dict(type=f'Conv{dimension}')
+    norm_cfg = dict(type=f'BN{dimension}', requires_grad=True)
+
+    # direct invoke
+    # model = ResNet(depth, in_channels=in_chans, deep_stem=deep_stem,
+    #                head_type='classification', num_classes=num_classes,
+    #                first_stride=kwargs.get('first_stride', 2), conv_cfg=conv_cfg,
+    #                norm_cfg=norm_cfg)
+
+    # use cfg to build
+    pretrained = False if pretrained_name is False or pretrained_name is None else True
+    return build_model_with_cfg(ResNet, variant='resnet', pretrained=pretrained,
+                                default_cfg=default_cfgs.get(pretrained_name, None),
+                                # model config
+                                depth=depth,
+                                in_channels=in_chans,
+                                deep_stem=deep_stem,
+                                head_type='classification',
+                                num_classes=num_classes,
+                                first_stride=kwargs.get('first_stride', 2),
+                                conv_cfg=conv_cfg,
+                                norm_cfg=norm_cfg)
+
+
+def _check_pretrained(pretrained, netname='resnet'):
+    if pretrained is True:
+        pretrained = False
+    elif isinstance(pretrained, str):
+        pretrained = netname + '\t' + pretrained
+        if pretrained not in default_cfgs.keys():
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f"There is no {pretrained} pretrained weights, use random initialization.")
+            pretrained = False
+    return pretrained
+
+
+@register_model
+def resnet10_1d(pretrained=False, **kwargs):
+    depth = 10
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, 'resnet10_1d')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet10_2d(pretrained=False, **kwargs):
+    depth = 10
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, 'resnet10_2d')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet10_3d(pretrained=False, **kwargs):
+    depth = 10
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, 'resnet10_3d')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet18_1d(pretrained=False, **kwargs):
+    depth = 18
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, 'resnet18_1d')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet18_2d(pretrained=False, **kwargs):
+    depth = 18
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet18_3d(pretrained=False, **kwargs):
+    depth = 18
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet34_1d(pretrained=False, **kwargs):
+    depth = 34
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet34_2d(pretrained=False, **kwargs):
+    depth = 34
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet34_3d(pretrained=False, **kwargs):
+    depth = 34
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet50_1d(pretrained=False, **kwargs):
+    depth = 50
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet50_2d(pretrained=False, **kwargs):
+    depth = 50
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet50_3d(pretrained=False, **kwargs):
+    depth = 50
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet101_1d(pretrained=False, **kwargs):
+    depth = 101
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet101_2d(pretrained=False, **kwargs):
+    depth = 101
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet101_3d(pretrained=False, **kwargs):
+    depth = 101
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet152_1d(pretrained=False, **kwargs):
+    depth = 152
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet152_2d(pretrained=False, **kwargs):
+    depth = 152
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet152_3d(pretrained=False, **kwargs):
+    depth = 152
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=False, **kwargs)
+    return model
+
+
+@register_model
+def resnet10d_1d(pretrained=False, **kwargs):
+    depth = 10
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet10d_2d(pretrained=False, **kwargs):
+    depth = 10
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet10d_3d(pretrained=False, **kwargs):
+    depth = 10
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet18d_1d(pretrained=False, **kwargs):
+    depth = 18
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet18d_2d(pretrained=False, **kwargs):
+    depth = 18
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet18d_3d(pretrained=False, **kwargs):
+    depth = 18
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet34d_1d(pretrained=False, **kwargs):
+    depth = 34
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet34d_2d(pretrained=False, **kwargs):
+    depth = 34
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet34d_3d(pretrained=False, **kwargs):
+    depth = 34
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet50d_1d(pretrained=False, **kwargs):
+    depth = 50
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet50d_2d(pretrained=False, **kwargs):
+    depth = 50
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet50d_3d(pretrained=False, **kwargs):
+    depth = 50
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet101d_1d(pretrained=False, **kwargs):
+    depth = 101
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet101d_2d(pretrained=False, **kwargs):
+    depth = 101
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet101d_3d(pretrained=False, **kwargs):
+    depth = 101
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet152d_1d(pretrained=False, **kwargs):
+    depth = 152
+    dimen = '1d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet152d_2d(pretrained=False, **kwargs):
+    depth = 152
+    dimen = '2d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
+
+
+@register_model
+def resnet152d_3d(pretrained=False, **kwargs):
+    depth = 152
+    dimen = '3d'
+    pretrained = _check_pretrained(pretrained, f'resnet{depth}d_{dimen}')
+
+    model = _build_resnet(pretrained, depth=depth, dimension=dimen, deep_stem=True, **kwargs)
+    return model
