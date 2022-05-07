@@ -26,7 +26,7 @@ def _cfg(url='', **kwargs):
 
 
 default_cfgs = {
-    "resunet50_2d\tmultiplesclerosis": _cfg(
+    "resnet50unet_2d\tmultiplesclerosis": _cfg(
         url='https://github.com/songphilips/ptimz/releases/download/v0.0.1-hrnet/resunet50_2d_multiplesclerosis_FLAIR.pth.tar',
         input_details='MR [FLAIR]',
         spacing=(0.5, 0.5),
@@ -264,7 +264,7 @@ def _build_resunet(pretrained_name, depth, dimension="3d", in_chans=1, num_class
 
 
 @register_model
-def resunet50_3d(pretrained=False, **kwargs):
+def resnet50unet_3d(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     """
     depth = 50
@@ -273,13 +273,13 @@ def resunet50_3d(pretrained=False, **kwargs):
 
 
 @register_model
-def resunet50_2d(pretrained=False, **kwargs):
+def resnet50unet_2d(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     """
     if pretrained is True:
-        pretrained = 'resunet50_2d\tmultiplesclerosis'
+        pretrained = 'resnet50unet_2d\tmultiplesclerosis'
     elif isinstance(pretrained, str):
-        pretrained = 'resunet50_2d' + '\t' + pretrained
+        pretrained = 'resnet50unet_2d' + '\t' + pretrained
         if pretrained not in default_cfgs.keys():
             _logger = logging.getLogger(__name__)
             _logger.warning(f"There is no {pretrained} pretrained weights, use random initialization.")
@@ -291,7 +291,7 @@ def resunet50_2d(pretrained=False, **kwargs):
 
 
 @register_model
-def resunet50_1d(pretrained=False, **kwargs):
+def resnet50unet_1d(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     """
     depth = 50
