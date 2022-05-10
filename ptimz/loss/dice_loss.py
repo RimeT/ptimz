@@ -58,3 +58,15 @@ class DiceLoss(torch.nn.Module):
     def forward(self, output, target):
         probs = self.softmax(output)
         return self.dice(probs, target, weight=self.weight, smooth=self.smooth, cls_weight=self.cls_weight)
+
+
+class Metric_dice():
+    def __init__(self, real_mask, pred_mask):
+        #real_mask and pred_mask are numpy array inputs
+        self.real_mask = real_mask
+        self.pred_mask = pred_mask
+
+    def get_dice_coefficient(self):
+        intersection = (self.real_mask * self.pred_mask).sum()
+        union = self.real_mask.sum() + self.pred_mask.sum()
+        return 2 * intersection / union, 2 * intersection, union
