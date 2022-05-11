@@ -7,8 +7,7 @@
 
 import os
 import sys
-sys.path.append(os.path.split(sys.path[0])[0])
-
+import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -34,19 +33,43 @@ default_cfgs = {
         input_details='CT [lits17]',
         slice_thickness=1,
         first_conv='encoder_stage1.0',
-        num_classes=2, input_size=(1, 256, 256), last_layer='map1.0'),
+        num_classes=1, input_size=(1, 256, 256), last_layer=('map1.0','map2.0','map3.0','map4.0')),
 }
 
+def _build_resunet_3d(pretrained_name,  in_chans=1, num_classes=1,  **kwargs):
+    pretrained = False if pretrained_name is False or pretrained_name is None else True
+    if 'training' in kwargs.keys():
+        train_act = kwargs.get('training')
+    else:
+        train_act = False
+    return build_model_with_cfg(ResUNet_3d, variant='resunet3d', pretrained=pretrained,
+                                default_cfg=default_cfgs.get(pretrained_name, None),
+                                # model config
+                                in_channels=in_chans,
+                                num_classes=num_classes,
+                                training = train_act)
+def _check_pretrained(pretrained, netname='resunet_3d'):
+    if pretrained is True:
+        pretrained = False
+    elif isinstance(pretrained, str):
+        pretrained = netname + '\t' + pretrained
+        if pretrained not in default_cfgs.keys():
+            _logger = logging.getLogger(__name__)
+            _logger.warning(f"There is no {pretrained} pretrained weights, use random initialization.")
+            pretrained = False
+    return pretrained
 
 class ResUNet_3d(nn.Module):
 
-    def __init__(self, training):
+    def __init__(self, training=False,in_channels=1,num_classes=1):
         super().__init__()
 
         self.training = training
+        self.in_channels = in_channels
+        self.num_classes = num_classes #foreground classes, not include background class
 
         self.encoder_stage1 = nn.Sequential(
-            nn.Conv3d(1, 16, 3, 1, padding=1),
+            nn.Conv3d(self.in_channels, 16, 3, 1, padding=1),
             nn.PReLU(16),
 
             nn.Conv3d(16, 16, 3, 1, padding=1),
@@ -164,28 +187,28 @@ class ResUNet_3d(nn.Module):
 
         
         self.map4 = nn.Sequential(
-            nn.Conv3d(32, 1, 1, 1),
+            nn.Conv3d(32, self.num_classes, 1, 1),
             nn.Upsample(scale_factor=(1, 2, 2), mode='trilinear'),
             nn.Sigmoid()
         )
 
         
         self.map3 = nn.Sequential(
-            nn.Conv3d(64, 1, 1, 1),
+            nn.Conv3d(64, self.num_classes, 1, 1),
             nn.Upsample(scale_factor=(2, 4, 4), mode='trilinear'),
             nn.Sigmoid()
         )
 
        
         self.map2 = nn.Sequential(
-            nn.Conv3d(128, 1, 1, 1),
+            nn.Conv3d(128, self.num_classes, 1, 1),
             nn.Upsample(scale_factor=(4, 8, 8), mode='trilinear'),
             nn.Sigmoid()
         )
 
         
         self.map1 = nn.Sequential(
-            nn.Conv3d(256, 1, 1, 1),
+            nn.Conv3d(256, self.num_classes, 1, 1),
             nn.Upsample(scale_factor=(8, 16, 16), mode='trilinear'),
             nn.Sigmoid()
         )
@@ -251,9 +274,11 @@ def init(module):
 
 @register_model
 def resunet_3d(pretrained=False, **kwargs):
-    model = ResUNet_3d(training=kwargs.get('training'))
-    if isinstance(pretrained, str):
-        model.load_state_dict(torch.load(pretrained))
-    elif pretrained is None:
+    pretrained = _check_pretrained(pretrained, f'resunet_3d')
+    model = _build_resunet_3d(pretrained, **kwargs)
+    if pretrained is False:
         model.apply(init)
     return model
+
+
+

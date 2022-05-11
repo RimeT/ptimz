@@ -5,3 +5,4 @@ from .registry import register_model, model_entrypoint, list_models, is_model, l
     list_pretrained_names
 from .resnet import *
 from .unet import *
+from .resunet3d import *

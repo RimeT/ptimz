@@ -9,7 +9,7 @@ from time import time
 import torch
 import numpy as np
 import SimpleITK as sitk
-from ptimz.model_zoo.ResUNet3d import resunet_3d
+from ptimz.model_zoo.resunet3d import resunet_3d
 
 from ptimz.loss.dice_loss import Metric_dice
 
@@ -61,27 +61,21 @@ def sitk_resize(img, target_size, axis=-1):
 def main(para):
     os.environ['CUDA_VISIBLE_DEVICES'] = para.gpu
 
-    # 定义评价指标
     liver_score = collections.OrderedDict()
     liver_score['dice'] = []
 
-    # 定义网络并加载参数
-    net = resunet_3d(pretrained = para.module_path,training=False)
+    net=resunet_3d(pretrained='ctliver')
     device = torch.device('cuda:0')
     print(device)
     if torch.cuda.device_count() > 1:
         print('let us use',torch.cuda.device_count(),'gpus')
         net = torch.nn.DataParallel(net)
     net.to(device)
-    #net.load_state_dict(torch.load(para.module_path))#
-    #if input is dataparallel, or multiple gpu model, the load may varys
+
     net.eval()
 
-    file_name = []  # 文件名称
+    file_name = []
 
-    #output_path = '/home/dl/Workspace/jessie/lits17validpre1/output/'
-    #test_ct_path = '/home/dl/Workspace/jessie/lits17validpre1/ct/' #preprocessed validation ct
-    #test_seg_path =  '/home/dl/Workspace/jessie/lits17validpre1/seg/' #preprocessed validation seg
     output_path = para.output_path
     test_ct_path = para.test_ct_path
     test_seg_path = para.test_seg_path
@@ -105,15 +99,15 @@ def main(para):
 
 def valid(test_ct_path,test_seg_path,output_path,file,net,device,para):
     net.eval()
-    # 将CT读入内存
+
     ct_path = os.path.join(test_ct_path, file)
     ct = sitk.ReadImage(os.path.join(test_ct_path, file), sitk.sitkInt16)
     ct_array = sitk.GetArrayFromImage(ct)
-    # min max 归一化
+
     ct_array = ct_array.astype(np.float32)
     ct_array = ct_array / 200
 
-    # 滑动窗口取样预测
+    # sliding window to predict
     start_slice = 0
     end_slice = start_slice + para.size - 1
     count = np.zeros((ct_array.shape[0], 512, 512), dtype=np.int16)
@@ -127,7 +121,7 @@ def valid(test_ct_path,test_seg_path,output_path,file,net,device,para):
             outputs = net(ct_tensor)
             count[start_slice: end_slice + 1] += 1
             probability_map[start_slice: end_slice + 1] += np.squeeze(outputs.cpu().detach().numpy())
-            # 由于显存不足，这里直接保留ndarray数据，并在保存之后直接销毁计算图
+
             del outputs
             start_slice += para.stride
             end_slice = start_slice + para.size - 1
@@ -152,20 +146,17 @@ def valid(test_ct_path,test_seg_path,output_path,file,net,device,para):
 
     pred_path = os.path.join(output_path, file.replace('volume', 'pred'))  # ---
 
-    if pred_seg.shape[0] != seg_array.shape[0]:  # when seg space not adjust to setting 1mm
-        # pred_seg = ndimage.zoom(pred_seg,(seg_array.shape[0]/pred_seg.shape[0], 1, 1), order=3)
+    if pred_seg.shape[0] != seg_array.shape[0]:
         pred_seg = sitk_resize(pred_seg, seg_array.shape, axis=-1)
         pred_seg = pred_seg[0:seg_array.shape[0]]
 
-    # 计算分割评价指标
+
     liver_metric = Metric_dice(seg_array, pred_seg)
 
     dice = liver_metric.get_dice_coefficient()[0]
-    #dice_intersection = liver_metric.get_dice_coefficient()[1]
-    #dice_union = liver_metric.get_dice_coefficient()[2]
-    #dice = dice_intersection / dice_union
+
     print('ct path {} seg path {} dice {:.3f}'.format(ct_path, seg_path, dice))
-    # 最终将数据保存为nii
+    # save output
     new_ct = sitk.GetImageFromArray(pred_seg)
     new_ct.SetDirection(seg.GetDirection())
     new_ct.SetOrigin(seg.GetOrigin())
