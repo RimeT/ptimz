@@ -68,6 +68,8 @@ class ResUNet_3d(nn.Module):
         self.in_channels = in_channels
         self.num_classes = num_classes #foreground classes, not include background class
 
+        assert self.in_channels == 1, 'Input channel should be 1. Multi-channel input will be available in further update'
+
         self.encoder_stage1 = nn.Sequential(
             nn.Conv3d(self.in_channels, 16, 3, 1, padding=1),
             nn.PReLU(16),
