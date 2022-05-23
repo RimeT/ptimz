@@ -342,8 +342,5 @@ def _build_cycleGAN_G(pretrained_name, ngf=64,
 @register_model
 def cyclegan_2d(pretrained='cyclegan_2d\tlung_ct', **kwargs):
     model = _build_cycleGAN_G(pretrained, in_chans=1, input_nc=1, output_nc=1, num_downs=8)
-    # load_suffix = 'latest'
-    # save_dir = r'D:\Data_analysis\phi-pytroch-image-model-zoo-v0.0.1\checkpoints\ctdose'
-    # load_networks(model, save_dir, load_suffix)
     return model
 
