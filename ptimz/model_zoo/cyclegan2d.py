@@ -3,7 +3,31 @@ import torch.nn as nn
 from torch.nn import init
 import functools
 import os
+from .helpers import build_model_with_cfg
 from .registry import register_model
+
+
+__all__ = ['UnetGenerator']
+
+
+def _cfg(url='', **kwargs):
+    return {
+        'url': url,
+        # 'interpolation': 'trilinear',
+        'num_classes': 1000,
+        **kwargs
+    }
+
+
+default_cfgs = {
+    "cyclegan_2d\tlung_ct": _cfg(
+        url='https://github.com/songphilips/ptimz/releases/tag/v0.0.1-hrnet/cyclegan_net_G_A.pth',
+        input_details='CT',
+        slice_thickness=1,
+        first_conv='model.model.0',
+        num_classes=1, input_size=(1, 512, 512)),
+}
+
 
 
 def __patch_instance_norm_state_dict(state_dict, module, keys, i=0):
@@ -202,7 +226,7 @@ class ResnetGenerator(nn.Module):
 class UnetGenerator(nn.Module):
     """Create a Unet-based generator"""
 
-    def __init__(self, input_nc, output_nc, num_downs, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
+    def __init__(self, input_nc, output_nc, num_downs, in_chans=1, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
         """Construct a Unet generator
         Parameters:
             input_nc (int)  -- the number of channels in input images
@@ -285,27 +309,41 @@ def init_weights(net, init_type='normal', init_gain=0.02):
     net.apply(init_func)  # apply the initialization function <init_func>
 
 
-def _build_cycleGAN_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, init_type='normal', init_gain=0.02, gpu_ids=[]):
+def _build_cycleGAN_G(pretrained_name, ngf=64,
+                              norm='instance', use_dropout=False, init_type='normal',
+                              init_gain=0.02, **kwargs):
     net = None
     norm_layer = get_norm_layer(norm_type=norm)
-    if netG == 'resnet_9blocks':
-        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9)
-    elif netG == 'resnet_6blocks':
-        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6)
-    elif netG == 'unet_128':
-        net = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
-    elif netG == 'unet_256':
-        net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
-    else:
-        raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
-    return init_net(net, init_type, init_gain, gpu_ids)
+    # if netG == 'resnet_9blocks':
+    #     net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9)
+    # elif netG == 'resnet_6blocks':
+    #     net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6)
+    # elif netG == 'unet_128':
+    #     net = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
+    # elif netG == 'unet_256':
+    #     net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
+    # else:
+    #     raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
+    # return init_net(net, init_type, init_gain, gpu_ids)
+    num_classes = 1000
+    in_chans = 1
+    extra = {}
+    conv_cfg = {}
+    norm_cfg = {}
+    pretrained = False if pretrained_name is False or pretrained_name is None else True
+    # print('pretrained', pretrained)
+    return build_model_with_cfg(model_cls=UnetGenerator, variant='', pretrained=pretrained,
+                                default_cfg=default_cfgs.get(pretrained_name, None), pretrained_strict=False, **kwargs)
+                                # model config
+                                # num_classes=num_classes,
+
 
 
 @register_model
-def cyclegan2d(pretrained=True, **kwargs):
-    pretrained = 'resnet50unet_2d\tmultiplesclerosis'
-    model = _build_cycleGAN_G(input_nc=1, output_nc=1, ngf=64, netG='unet_256', norm='instance', use_dropout=False, init_type='normal', init_gain=0.02, gpu_ids=[])
-    load_suffix = 'latest'
-    save_dir = r'D:\Data_analysis\phi-pytroch-image-model-zoo-v0.0.1\checkpoints\ctdose'
-    load_networks(model, save_dir, load_suffix)
+def cyclegan_2d(pretrained='cyclegan_2d\tlung_ct', **kwargs):
+    model = _build_cycleGAN_G(pretrained, in_chans=1, input_nc=1, output_nc=1, num_downs=8)
+    # load_suffix = 'latest'
+    # save_dir = r'D:\Data_analysis\phi-pytroch-image-model-zoo-v0.0.1\checkpoints\ctdose'
+    # load_networks(model, save_dir, load_suffix)
     return model
+

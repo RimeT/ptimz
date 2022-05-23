@@ -6,3 +6,6 @@ from .registry import register_model, model_entrypoint, list_models, is_model, l
 from .resnet import *
 from .unet import *
 from .resunet3d import *
+from .cyclegan2d import *
+
+
