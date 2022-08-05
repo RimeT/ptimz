@@ -1,11 +1,14 @@
+import functools
+import inspect
+import logging
+import os
+
 import torch
 import torch.nn as nn
 from torch.nn import init
-import functools
-import os
+
 from .helpers import build_model_with_cfg
 from .registry import register_model
-
 
 __all__ = ['UnetGenerator']
 
@@ -25,11 +28,10 @@ default_cfgs = {
         input_details='CT',
         slice_thickness=1,
         first_conv='model.model.0',
-        num_classes=0, input_size=(1, 512, 512),
-        last_layer= 'model.model.4',
+        num_classes=1, input_size=(1, 512, 512),
+        last_layer='model.model.3',
     ),
 }
-
 
 
 def __patch_instance_norm_state_dict(state_dict, module, keys, i=0):
@@ -71,7 +73,6 @@ def load_networks(net, save_dir, epoch='latest'):
     net.load_state_dict(state_dict)
 
 
-
 def get_norm_layer(norm_type='instance'):
     """Return a normalization layer
 
@@ -90,7 +91,6 @@ def get_norm_layer(norm_type='instance'):
     else:
         raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
     return norm_layer
-
 
 
 class UnetSkipConnectionBlock(nn.Module):
@@ -159,7 +159,7 @@ class UnetSkipConnectionBlock(nn.Module):
     def forward(self, x):
         if self.outermost:
             return self.model(x)
-        else:   # add skip connections
+        else:  # add skip connections
             return torch.cat([x, self.model(x)], 1)
 
 
@@ -169,7 +169,8 @@ class ResnetGenerator(nn.Module):
     We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
     """
 
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect'):
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6,
+                 padding_type='reflect'):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -181,7 +182,7 @@ class ResnetGenerator(nn.Module):
             n_blocks (int)      -- the number of ResNet blocks
             padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
         """
-        assert(n_blocks >= 0)
+        assert (n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
@@ -201,9 +202,10 @@ class ResnetGenerator(nn.Module):
                       nn.ReLU(True)]
 
         mult = 2 ** n_downsampling
-        for i in range(n_blocks):       # add ResNet blocks
+        for i in range(n_blocks):  # add ResNet blocks
 
-            model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
+            model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
+                                  use_bias=use_bias)]
 
         for i in range(n_downsampling):  # add upsampling layers
             mult = 2 ** (n_downsampling - i)
@@ -224,11 +226,10 @@ class ResnetGenerator(nn.Module):
         return self.model(input)
 
 
-
 class UnetGenerator(nn.Module):
     """Create a Unet-based generator"""
 
-    def __init__(self, input_nc, output_nc, num_downs, in_chans=1, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
+    def __init__(self, in_chans, num_classes, num_downs, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
         """Construct a Unet generator
         Parameters:
             input_nc (int)  -- the number of channels in input images
@@ -243,19 +244,23 @@ class UnetGenerator(nn.Module):
         """
         super(UnetGenerator, self).__init__()
         # construct unet structure
-        unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)  # add the innermost layer
-        for i in range(num_downs - 5):          # add intermediate layers with ngf * 8 filters
-            unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer, use_dropout=use_dropout)
+        unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer,
+                                             innermost=True)  # add the innermost layer
+        for i in range(num_downs - 5):  # add intermediate layers with ngf * 8 filters
+            unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=unet_block,
+                                                 norm_layer=norm_layer, use_dropout=use_dropout)
         # gradually reduce the number of filters from ngf * 8 to ngf
-        unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        unet_block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
+        unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
+                                             norm_layer=norm_layer)
+        unet_block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block,
+                                             norm_layer=norm_layer)
         unet_block = UnetSkipConnectionBlock(ngf, ngf * 2, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer)  # add the outermost layer
+        self.model = UnetSkipConnectionBlock(num_classes, ngf, input_nc=in_chans, submodule=unet_block, outermost=True,
+                                             norm_layer=norm_layer)  # add the outermost layer
 
     def forward(self, input):
         """Standard forward"""
         return self.model(input)
-
 
 
 def init_net(net, init_type='normal', init_gain=0.02, gpu_ids=[]):
@@ -269,12 +274,11 @@ def init_net(net, init_type='normal', init_gain=0.02, gpu_ids=[]):
     Return an initialized network.
     """
     if len(gpu_ids) > 0:
-        assert(torch.cuda.is_available())
+        assert (torch.cuda.is_available())
         net.to(gpu_ids[0])
         net = torch.nn.DataParallel(net, gpu_ids)  # multi-GPUs
     init_weights(net, init_type, init_gain=init_gain)
     return net
-
 
 
 def init_weights(net, init_type='normal', init_gain=0.02):
@@ -288,6 +292,7 @@ def init_weights(net, init_type='normal', init_gain=0.02):
     We use 'normal' in the original pix2pix and CycleGAN paper. But xavier and kaiming might
     work better for some applications. Feel free to try yourself.
     """
+
     def init_func(m):  # define the initialization function
         classname = m.__class__.__name__
         if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
@@ -303,7 +308,8 @@ def init_weights(net, init_type='normal', init_gain=0.02):
                 raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
             if hasattr(m, 'bias') and m.bias is not None:
                 init.constant_(m.bias.data, 0.0)
-        elif classname.find('BatchNorm2d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
+        elif classname.find(
+                'BatchNorm2d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
             init.normal_(m.weight.data, 1.0, init_gain)
             init.constant_(m.bias.data, 0.0)
 
@@ -312,8 +318,8 @@ def init_weights(net, init_type='normal', init_gain=0.02):
 
 
 def _build_cycleGAN_G(pretrained_name, ngf=64,
-                              norm='instance', use_dropout=False, init_type='normal',
-                              init_gain=0.02, **kwargs):
+                      norm='instance', use_dropout=False, init_type='normal',
+                      init_gain=0.02, in_chans=None, num_classes=None, **kwargs):
     net = None
     norm_layer = get_norm_layer(norm_type=norm)
     # if netG == 'resnet_9blocks':
@@ -327,30 +333,37 @@ def _build_cycleGAN_G(pretrained_name, ngf=64,
     # else:
     #     raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     # return init_net(net, init_type, init_gain, gpu_ids)
-    num_classes = 1000
-    in_chans = 1
-    extra = {}
-    conv_cfg = {}
-    norm_cfg = {}
     pretrained = False if pretrained_name is False or pretrained_name is None else True
-    # print('pretrained', pretrained)
-    return build_model_with_cfg(model_cls=UnetGenerator, variant='', pretrained=pretrained,
-                                default_cfg=default_cfgs.get(pretrained_name, None), pretrained_strict=False, **kwargs)
-                                # model config
-                                # num_classes=num_classes,
 
+    # if user not specify in_chans or num_classes, use the pretrained default.
+    if pretrained and (in_chans is None or num_classes is None):
+        precfg = default_cfgs.get(pretrained_name, None)
+        assert precfg is not None, f"Pretrained {pretrained_name} not exists."
+        if in_chans is None:
+            in_chans = precfg['input_size'][0]
+        if num_classes is None:
+            num_classes = precfg['num_classes']
+    else:
+        assert in_chans is not None and num_classes is not None, "Please set in_chans and num_classes if no pretrained."
+
+    return build_model_with_cfg(model_cls=UnetGenerator, variant='', pretrained=pretrained,
+                                default_cfg=default_cfgs.get(pretrained_name, None), pretrained_strict=False,
+                                # model config
+                                in_chans=in_chans,
+                                num_classes=num_classes,
+                                num_downs=kwargs.get('num_downs', 8))
 
 
 @register_model
 def cyclegan_2d(pretrained='cyclegan_2d\tlung_ct', **kwargs):
+    func_name = str(inspect.stack()[0][3])
     if pretrained is True:
-        pretrained = 'cyclegan_2d\tlung_ct'
+        pretrained = f'{func_name}\tlung_ct'
     elif isinstance(pretrained, str):
-        pretrained = 'cyclegan_2d' + '\t' + pretrained
+        pretrained = func_name + '\t' + pretrained
         if pretrained not in default_cfgs.keys():
             _logger = logging.getLogger(__name__)
             _logger.warning(f"There is no {pretrained} pretrained weights, use random initialization.")
             pretrained = False
-    model = _build_cycleGAN_G(pretrained, in_chans=1, input_nc=1, output_nc=1, num_downs=8)
+    model = _build_cycleGAN_G(pretrained, num_downs=8, **kwargs)
     return model
-

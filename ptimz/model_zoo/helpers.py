@@ -54,7 +54,7 @@ def load_pretrained(model, default_cfg=None, num_classes=2, in_chans=1, filter_f
         return
     if pretrained_url:
         _logger.info(f'Loading pretrained weights from url ({pretrained_url})')
-        state_dict = load_state_dict_from_url(pretrained_url, progress=progress, map_location='cpu')
+        state_dict = load_state_dict_from_url(pretrained_url, progress=progress, check_hash=True, map_location='cpu')
     # elif hf_hub_id and has_hf_hub(necessary=True):
     #     _logger.info(f'Loading pretrained weights from Hugging Face hub ({hf_hub_id})')
     #     state_dict = load_state_dict_from_hf(hf_hub_id)
@@ -110,6 +110,8 @@ def build_model_with_cfg(
         pretrained_filter_fn: Optional[Callable] = None,
         **kwargs):
     pruned = kwargs.pop('pruned', False)
+    if 'pretrained_cfg' in kwargs.keys():
+        kwargs.pop('pretrained_cfg')
     default_cfg = deepcopy(default_cfg) if default_cfg else {}
 
     # Build the model
@@ -136,6 +138,8 @@ def build_model_with_cfg(
             num_classes=num_classes_pretrained,
             in_chans=in_chans,
             filter_fn=pretrained_filter_fn,
-            strict=pretrained_strict)
+            strict=pretrained_strict,
+            progress=True,
+        )
 
     return model
