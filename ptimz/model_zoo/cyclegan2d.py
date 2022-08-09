@@ -25,6 +25,7 @@ def _cfg(url='', **kwargs):
 default_cfgs = {
     "cyclegan_2d\tlung_ct": _cfg(
         url='https://github.com/songphilips/ptimz/releases/download/v0.0.1-hrnet/cyclegan_net_G_A.pth.tar',
+        paper='https://doi.org/10.3348/kjr.2020.0988',
         input_details='CT',
         slice_thickness=1,
         first_conv='model.model.0',
@@ -363,7 +364,7 @@ def cyclegan_2d(pretrained='cyclegan_2d\tlung_ct', **kwargs):
         pretrained = func_name + '\t' + pretrained
         if pretrained not in default_cfgs.keys():
             _logger = logging.getLogger(__name__)
-            _logger.warning(f"There is no {pretrained} pretrained weights, use random initialization.")
+            _logger.warning(f"No {pretrained} pretrained weights, use random initialization.")
             pretrained = False
     model = _build_cycleGAN_G(pretrained, num_downs=8, **kwargs)
     return model

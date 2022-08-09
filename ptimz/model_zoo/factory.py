@@ -1,10 +1,10 @@
 from urllib.parse import urlsplit, urlunsplit
 import os
 
-from .registry import is_model, is_model_in_modules, model_entrypoint
+from .registry import is_model, is_model_in_modules, model_entrypoint, get_pretrained_cfg
 from timm.models.helpers import load_checkpoint
 from timm.models.layers import set_layer_config
-from timm.models.hub import load_model_config_from_hf
+# from timm.models.hub import load_model_config_from_hf
 
 
 def parse_model_name(model_name):
@@ -16,7 +16,7 @@ def parse_model_name(model_name):
         return parsed.scheme, parsed.path
     else:
         model_name = os.path.split(parsed.path)[-1]
-        return 'timm', model_name
+        return 'ptimz', model_name
 
 
 def safe_model_name(model_name, remove_source=True):
@@ -40,7 +40,7 @@ def create_model(
 
     Args:
         model_name (str): name of model to instantiate
-        pretrained (bool): load pretrained ImageNet-1k weights if true
+        pretrained (bool|str): pretrained name or True to load default weights.
         checkpoint_path (str): path of checkpoint to load after model is initialized
         scriptable (bool): set layer config so that model is jit scriptable (not working for all models yet)
         exportable (bool): set layer config so that model is traceable / ONNX exportable (not fully impl/obeyed yet)
@@ -57,6 +57,8 @@ def create_model(
     kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
     model_source, model_name = parse_model_name(model_name)
+
+    # The following was copy from timm. model_source = timm
     # if model_source == 'hf-hub':
     #     # FIXME hf-hub source overrides any passed in pretrained_cfg, warn?
     #     # For model names specified in the form `hf-hub:path/architecture_name@revision`,

@@ -5,11 +5,12 @@ Hacked together by / Copyright timm 2020 Ross Wightman
 import fnmatch
 import re
 import sys
+import warnings
 from collections import defaultdict
 from copy import deepcopy
 
 __all__ = ['list_models', 'is_model', 'model_entrypoint', 'list_modules', 'is_model_in_modules',
-           'list_pretrained_names',
+           'list_pretrained_names', 'get_pretrain_config',
            'is_pretrained_cfg_key', 'has_pretrained_cfg_key', 'get_pretrained_cfg_value', 'is_model_pretrained']
 
 _module_to_models = defaultdict(set)  # dict of sets to check membership of model in module
@@ -182,9 +183,22 @@ def list_pretrained_names(model_name=None):
     if model_name is None:
         names = []
         for x in list_models():
-           prs = list_pretrained(_model_pretrained_cfgs)[x]
-           if len(prs) > 0:
-               for pr in prs:
-                   names.append(pr+'|'+x)
+            prs = list_pretrained(_model_pretrained_cfgs)[x]
+            if len(prs) > 0:
+                for pr in prs:
+                    names.append(pr + '|' + x)
         return sorted(names)
     return list_pretrained(_model_pretrained_cfgs)[model_name]
+
+
+def get_pretrain_config(model_name, pretrained_name):
+    if not is_model(model_name):
+        warnings.warn(f'{model_name} is not a valid model name')
+        return {}
+    if pretrained_name not in list_pretrained_names(model_name):
+        warnings.warn(f'{model_name} has no pretrained weights {pretrained_name}')
+        return {}
+    cfg = deepcopy(_model_pretrained_cfgs[model_name + '\t' + pretrained_name])
+    # remove pretrain url
+    cfg.pop('url')
+    return cfg
