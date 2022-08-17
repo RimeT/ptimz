@@ -142,7 +142,9 @@ setup(
     # install_requires=parse_requirements('requirements.txt'),
     install_requires=['numpy>=1.19.0', 'torch>=1.9.0', 'torchvision>=0.10.0', 'openmim>=0.1.5', 'timm', 'SimpleITK',
                       'pynrrd', 'pydicom', 'opencv-python',
-                      'pydicom', 'Pillow', 'mmcv>=1.3.9,<=1.4.8', 'mmpose==0.24.0', 'monai', 'torchio', 'matplotlib',
+                      'pydicom', 'Pillow',
+                      'mmcv>=1.3.9,<=1.4.8', 'mmpose==0.24.0', 'mmcls', 'mmsegmentation',
+                      'monai', 'torchio', 'matplotlib',
                       'jupyterlab', 'jupyter_contrib_nbextensions', 'nbconvert'],
     python_requires='>=3.6',
 )

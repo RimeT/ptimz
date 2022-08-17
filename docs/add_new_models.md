@@ -1,8 +1,8 @@
-# TUTORIAL: Adding a new model to the zoo
+# TUTORIAL: Add new models to the zoo
 
 ## Model file
 
-1. Dependencies: add python package dependencies to **setup() install_requires** in **ptimz/setup.py**
+1. Dependencies: Add python dependencies to **setup() install_requires** in **ptimz/setup.py**
 ```python
 setup(
     packages=find_packages(exclude=['convert', 'tests']),
@@ -17,9 +17,9 @@ setup(
     python_requires='>=3.6',
 )
 ```
-2. create a model file in ptimz/model_zoo, e.g. ptimz/model_zoo/litehrnet.py
-3. In ptimz/model_zoo/litehrnet.py import ptimz.registry.register_model and register the new model.  
-The model file is summarized as follow:
+2. Create a model file in ptimz/model_zoo, e.g. ptimz/model_zoo/litehrnet.py
+3. In ptimz/model_zoo/litehrnet.py import ptimz.registry.register_model and register the new model,  
+summarized as follows:
 ```python
 from torch import nn
 from .registry import register_model
@@ -65,13 +65,14 @@ def litehrnet_seg3d(pretrained=None, in_chans=None, num_classes=None, **kwargs):
     return model
 
 ```
-Now ptimz could find the new model with the name"litehrnet_seg3d".
 
-4. import the model in ptimz/model_zoo/__init__.py
+4. Import the model in ptimz/model_zoo/__init__.py
 ```python
 ## in ptimz/model_zoo/__init__.py
 from .litehrnet import *
 ```
+
+Now ptimz can find the new model with the name "litehrnet_seg3d".
 
 ## in_chans and num_classes
 in_chans and num_classes are key parameters in registered functions.  
@@ -81,15 +82,15 @@ in_chans and num_classes are key parameters in registered functions.
 - nn.Linear input feature size
 - nn.Embedding input feature size
 
-If a model is used to process a T1w & T2w scan, in_chans=2
+If a model is used to process T1w & T2w scans, in_chans=2
 
 **num_classes** could be:
 - The last convolutional layer input channels, e.g. semantic segmentation last layer
 - nn.Linear output feature size, e.g. classification last layer
 
 
-## Model fine-tuning and weight transfer
-ptimz users could easily fine-tune the model just giving: i) the pretrained model name, ii) new input channels, iii) new output channels
+## Model fine-tuning and weights transfer
+ptimz users could easily fine-tune the model just giving: i) the pretrained model name, ii) input channels, iii) output channels
 To make it, we need to add the following components to the model file:
 ### default_cfgs 
 A dict exists in each model file, each key-values pair contains pretrained weights download link, model and data infos.
@@ -189,3 +190,32 @@ ptimz.model_zoo.helpers.build_model_with_cfg will:
 - Interpolate(reshape) model 'first_conv' input_channels to new in_chans.
 - Drop the 'last_layer' weights if num_classes not equals to the pretrained weights.
 - Return the instance of model_cls with model parameters
+
+
+## Install or Package ptimz
+Make sure the latest version of PyPA’s build installed:
+```shell
+pip install -U build
+```
+
+### Package ptimz
+Go to the ptimz project root directory.
+```shell
+python -m build
+```
+The ptimz is packed into: **./dist/ptimz-0.0.1-py2.py3-none-any.whl**
+
+### Install ptimz
+Install by wheel
+```shell
+pip install -U ./dist/ptimz-0.0.1-py2.py3-none-any.whl
+```
+
+Install from source
+```shell
+pip install -v -e .
+```
+or
+```shell
+python setup.py develop
+```
