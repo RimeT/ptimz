@@ -19,7 +19,7 @@ setup(
 ```
 2. Create a model file in ptimz/model_zoo, e.g. ptimz/model_zoo/litehrnet.py
 3. In ptimz/model_zoo/litehrnet.py import ptimz.registry.register_model and register the new model,  
-summarized as follows:
+summarized as follows:0
 ```python
 from torch import nn
 from .registry import register_model

@@ -8,11 +8,9 @@ pynrrd
 pydicom
 opencv-python
 Pillow
-mmcv>=1.3.9,<=1.4.8
-mmpose==0.24.0
+mmcv
+mmcls
+mmpose
 monai
 torchio
 matplotlib
-jupyterlab
-jupyter_contrib_nbextensions
-nbconvert

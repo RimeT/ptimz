@@ -7,5 +7,6 @@ from .resnet import *
 from .unet import *
 from .resunet3d import *
 from .cyclegan2d import *
+from .vit import *
 
 
