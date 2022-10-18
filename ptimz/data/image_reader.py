@@ -125,7 +125,7 @@ def paths2numpy(paths: list, lib=None, fill_na: bool = False) -> np.ndarray:
     height = None
     for p in paths:
         if os.path.isfile(p):
-            im = image_reader(p, lib)
+            im = load_image(p, lib)
             if width is not None and height is not None:
                 # im should be 2d
                 height, width = im.shape[:2]

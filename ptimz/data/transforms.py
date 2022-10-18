@@ -22,10 +22,8 @@ def sitk_respacing(image: sitk.Image, spacing, interpolator=sitk.sitkLinear):
 
 def image_normalize(im, rang=1.):
     if isinstance(im, np.ndarray):
-        im = im.astype(float)
         im = (im - np.min(im)) / (np.max(im) - np.min(im))
     elif isinstance(im, torch.Tensor):
-        im = im.type(torch.FloatTensor)
         im = (im - torch.min(im)) / (torch.max(im) - torch.min(im))
     else:
         raise ValueError(f"image_normalize Unknown type {type(im)}")

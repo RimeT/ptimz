@@ -1197,9 +1197,33 @@ class LiteHRNet(nn.Module):
                     m.eval()
 
 
-def _build_hrnet(pretrained_name, head_type, dimension="3d", in_chans=1, num_classes=1000, **kwargs):
+def _build_hrnet(pretrained_name, head_type, dimension="3d", in_chans=None, num_classes=None, **kwargs):
     dimension = dimension.lower()
     assert dimension in ('2d', '3d'), "dimension must be 2d or 3d"
+    # direct invoke
+    # model = LiteHRNet(extra, in_channels=in_chans, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
+    # return model
+
+    # use cfg to build
+    pretrained = False if pretrained_name is False or pretrained_name is None else True
+
+    # if not specify the in_chans or num_classes, this will load the default from default_cfg
+    if pretrained and pretrained_name in default_cfgs.keys():
+        if in_chans is None:
+            input_size = default_cfgs[pretrained_name].get('input_size', None)
+            if input_size is not None:
+                in_chans = input_size[0]
+                print(f'Load default in_chans for {pretrained_name} as {in_chans}')
+            else:
+                raise ValueError(f"Please specify in_chans for {pretrained_name}")
+
+        if num_classes is None:
+            num_classes = default_cfgs[pretrained_name].get('num_classes', None)
+            if num_classes is None:
+                raise ValueError(f"Please specify num_classes for {pretrained_name}")
+            else:
+                print(f'Load default num_classes for {pretrained_name} as {num_classes}')
+
     head_dict = dict(nclasses=num_classes)
     extra = dict(
         stem=dict(
@@ -1227,12 +1251,6 @@ def _build_hrnet(pretrained_name, head_type, dimension="3d", in_chans=1, num_cla
     conv_cfg = dict(type=f'Conv{dimension}')
     norm_cfg = dict(type=f'BN{dimension}')
 
-    # direct invoke
-    # model = LiteHRNet(extra, in_channels=in_chans, conv_cfg=conv_cfg, norm_cfg=norm_cfg)
-    # return model
-
-    # use cfg to build
-    pretrained = False if pretrained_name is False or pretrained_name is None else True
     return build_model_with_cfg(model_cls=LiteHRNet, variant='litehrnet', pretrained=pretrained,
                                 default_cfg=default_cfgs.get(pretrained_name, None), num_classes=num_classes,
                                 # model config

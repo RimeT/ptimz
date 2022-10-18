@@ -787,7 +787,7 @@ class ResNetV1d(ResNet):
         super().__init__(deep_stem=True, avg_down=True, **kwargs)
 
 
-def _build_resnet(pretrained_name, depth, dimension="3d", in_chans=1, num_classes=1000, deep_stem=False, **kwargs):
+def _build_resnet(pretrained_name, depth, dimension="3d", in_chans=None, num_classes=None, deep_stem=False, **kwargs):
     conv_cfg = dict(type=f'Conv{dimension}')
     norm_cfg = dict(type=f'BN{dimension}', requires_grad=True)
 
@@ -799,6 +799,24 @@ def _build_resnet(pretrained_name, depth, dimension="3d", in_chans=1, num_classe
 
     # use cfg to build
     pretrained = False if pretrained_name is False or pretrained_name is None else True
+
+    # if not specify the in_chans or num_classes, this will load the default from default_cfg
+    if pretrained and pretrained_name in default_cfgs.keys():
+        if in_chans is None:
+            input_size = default_cfgs[pretrained_name].get('input_size', None)
+            if input_size is not None:
+                in_chans = input_size[0]
+                print(f'Load default in_chans for {pretrained_name} as {in_chans}')
+            else:
+                raise ValueError(f"Please specify in_chans for {pretrained_name}")
+
+        if num_classes is None:
+            num_classes = default_cfgs[pretrained_name].get('num_classes', None)
+            if num_classes is None:
+                raise ValueError(f"Please specify num_classes for {pretrained_name}")
+            else:
+                print(f'Load default num_classes for {pretrained_name} as {num_classes}')
+
     return build_model_with_cfg(ResNet, variant='resnet', pretrained=pretrained,
                                 default_cfg=default_cfgs.get(pretrained_name, None),
                                 # model config

@@ -336,16 +336,22 @@ def _build_cycleGAN_G(pretrained_name, ngf=64,
     # return init_net(net, init_type, init_gain, gpu_ids)
     pretrained = False if pretrained_name is False or pretrained_name is None else True
 
-    # if user not specify in_chans or num_classes, use the pretrained default.
-    if pretrained and (in_chans is None or num_classes is None):
-        precfg = default_cfgs.get(pretrained_name, None)
-        assert precfg is not None, f"Pretrained {pretrained_name} not exists."
+    # if not specify the in_chans or num_classes, this will load the default from default_cfg
+    if pretrained and pretrained_name in default_cfgs.keys():
         if in_chans is None:
-            in_chans = precfg['input_size'][0]
+            input_size = default_cfgs[pretrained_name].get('input_size', None)
+            if input_size is not None:
+                in_chans = input_size[0]
+                print(f'Load default in_chans for {pretrained_name} as {in_chans}')
+            else:
+                raise ValueError(f"Please specify in_chans for {pretrained_name}")
+
         if num_classes is None:
-            num_classes = precfg['num_classes']
-    else:
-        assert in_chans is not None and num_classes is not None, "Please set in_chans and num_classes if no pretrained."
+            num_classes = default_cfgs[pretrained_name].get('num_classes', None)
+            if num_classes is None:
+                raise ValueError(f"Please specify num_classes for {pretrained_name}")
+            else:
+                print(f'Load default num_classes for {pretrained_name} as {num_classes}')
 
     return build_model_with_cfg(model_cls=UnetGenerator, variant='', pretrained=pretrained,
                                 default_cfg=default_cfgs.get(pretrained_name, None), pretrained_strict=False,
