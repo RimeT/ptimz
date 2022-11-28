@@ -36,6 +36,8 @@ if __name__ == '__main__':
     parser.add_argument('input', type=str,
                         help='Root dir of scans. All the files must have suffix and file type could be nifty, nrrd, dcms in a directory.')
     parser.add_argument('outcsv', type=str, help='csv file name with no suffix')
+    parser.add_argument('weights_file', type=str, help='model weights')
+
     parser.add_argument('--gpuid', type=int, default=-1, help='GPU id, -1 will run on CPU.')
     parser.add_argument('--topk', type=int, default=-1,
                         help='This will select topk high score slices to make the final prediction. set -1 to disable topk.')
@@ -45,6 +47,8 @@ if __name__ == '__main__':
     src_root = opt.input
     out_csv = opt.outcsv + '_binary.csv'
     scoreout_csv = opt.outcsv + '_scores.csv'
+
+    weights_file = opt.weights_file
 
     topk = opt.topk
 
